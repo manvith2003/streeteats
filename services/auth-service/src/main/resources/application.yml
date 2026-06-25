@@ -1,0 +1,12 @@
+server:
+  port: 8088
+spring:
+  application:
+    name: auth-service
+
+jwt:
+  secret: ${JWT_SECRET:streeteats-dev-secret-change-me-please-32+chars}
+  ttl-ms: 86400000   # 24h
+
+auth:
+  expose-otp: ${EXPOSE_OTP:true}   # dev: return OTP in response. Set false in production.

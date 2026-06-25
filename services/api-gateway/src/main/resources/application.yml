@@ -15,6 +15,9 @@ spring:
             allowedMethods: "*"
             allowedHeaders: "*"
       routes:
+        - id: auth
+          uri: ${AUTH_URL:http://localhost:8088}
+          predicates: [ Path=/api/auth/** ]
         - id: vendor
           uri: ${VENDOR_URL:http://localhost:8081}
           predicates: [ Path=/api/vendors/** ]
@@ -36,3 +39,9 @@ spring:
         - id: notification
           uri: ${NOTIFY_URL:http://localhost:8087}
           predicates: [ Path=/api/notifications/** ]
+
+jwt:
+  secret: ${JWT_SECRET:streeteats-dev-secret-change-me-please-32+chars}
+
+ratelimit:
+  requests-per-minute: ${RATE_LIMIT_RPM:120}

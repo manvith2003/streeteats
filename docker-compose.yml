@@ -114,6 +114,14 @@ services:
       postgres: { condition: service_healthy }
       kafka: { condition: service_started }
 
+  # ---------------- Auth ----------------
+  auth-service:
+    build: ./services/auth-service
+    environment:
+      JWT_SECRET: streeteats-prod-secret-change-me-please-32chars
+      EXPOSE_OTP: "false"
+    ports: ["8088:8088"]
+
   # ---------------- Gateway ----------------
   api-gateway:
     build: ./services/api-gateway
@@ -125,8 +133,10 @@ services:
       SEARCH_URL: http://search-geo-service:8085
       RECO_URL: http://recommendation-service:8086
       NOTIFY_URL: http://notification-service:8087
+      AUTH_URL: http://auth-service:8088
+      JWT_SECRET: streeteats-prod-secret-change-me-please-32chars
     ports: ["8080:8080"]
-    depends_on: [vendor-service, live-status-service, menu-service, review-service, search-geo-service, recommendation-service, notification-service]
+    depends_on: [auth-service, vendor-service, live-status-service, menu-service, review-service, search-geo-service, recommendation-service, notification-service]
 
 volumes:
   pgdata:
