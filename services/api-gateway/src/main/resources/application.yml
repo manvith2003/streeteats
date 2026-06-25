@@ -30,3 +30,6 @@ spring:
         - id: search
           uri: ${SEARCH_URL:http://localhost:8085}
           predicates: [ Path=/api/search/** ]
+        - id: recommendation
+          uri: ${RECO_URL:http://localhost:8086}
+          predicates: [ Path=/api/recommendations/** ]
