@@ -1,24 +1,26 @@
 import { useState } from 'react'
 import { bg } from '../data.js'
 import { STATUS, Stars } from './Common.jsx'
+import { canEditVendor, canDelete } from '../perms.js'
 
 export default function VendorDetail({
-  vendor, idx, following, onClose, onDirections, onToggleFollow,
-  onConfirm, onReview, onEdit, onDelete, onStatus, onToggleSoldOut
+  vendor, idx, role, following, onClose, onDirections, onToggleFollow,
+  onConfirm, onReview, onEdit, onDelete, onStatus, onToggleSoldOut, onPostAbout
 }) {
   const [tab, setTab] = useState('menu')
   const [showRev, setShowRev] = useState(false)
   const [rating, setRating] = useState(5)
   const [cmt, setCmt] = useState('')
-  const [vendorMode, setVendorMode] = useState(false)
   const s = STATUS[vendor.state] || STATUS.UNKNOWN
   const items = vendor.menuItems || []
   const reviews = vendor.reviews || []
 
+  const mayEdit = canEditVendor(role, vendor)   // VENDOR (owner) or ADMIN only
+  const mayDelete = canDelete(role, vendor)
+
   const submitReview = () => {
     if (!cmt.trim()) { alert('Add a short comment'); return }
-    onReview(vendor, { rating, cmt: cmt.trim() })
-    setCmt(''); setRating(5); setShowRev(false); setTab('reviews')
+    onReview(vendor, { rating, cmt: cmt.trim() }); setCmt(''); setRating(5); setShowRev(false); setTab('reviews')
   }
 
   return (
@@ -44,8 +46,8 @@ export default function VendorDetail({
           </div>
           <div style={{fontSize:12,color:'#9aa0a6',marginTop:6}}>
             {vendor.source==='COMMUNITY_ADDED'
-              ? 'Community-tracked — location kept fresh by people nearby'
-              : 'Vendor-verified — updated by the vendor'}
+              ? 'Community-tracked — kept fresh by people nearby. Only the vendor can edit the menu & location.'
+              : 'Vendor-verified — menu & location set by the vendor.'}
           </div>
 
           <div className="btnrow">
@@ -55,23 +57,26 @@ export default function VendorDetail({
               onClick={()=>onToggleFollow(vendor)}>{following?'♥':'♡'}</button>
           </div>
 
-          <div style={{display:'flex',gap:10,marginBottom:6}}>
-            <button className="btn ghost" style={{flex:1}} onClick={()=>onEdit(vendor)}>✏️ Edit</button>
-            <button className="btn ghost" style={{flex:1,color:'#e8451f'}}
-              onClick={()=>{ if(confirm(`Remove "${vendor.name}"?`)) onDelete(vendor) }}>🗑 Remove</button>
-            <button className={'btn '+(vendorMode?'follow':'ghost')} style={{flex:1}}
-              onClick={()=>setVendorMode(m=>!m)}>🛵 Vendor</button>
-          </div>
+          {/* Everyone can post a sighting */}
+          <button className="btn ghost" style={{width:'100%',marginBottom:8}} onClick={()=>onPostAbout(vendor)}>📸 Post about this cart</button>
 
-          {vendorMode && (
+          {/* Vendor/Admin only: manage listing */}
+          {mayEdit && (
             <div style={{background:'#fff7f2',border:'1px solid #ffe0cf',borderRadius:14,padding:12,marginBottom:8}}>
-              <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Vendor controls</div>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>
+                {role==='ADMIN'?'Admin controls':'Vendor controls'} <span style={{color:'#9aa0a6',fontWeight:600}}>· menu & location editing</span>
+              </div>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:8}}>
                 <button className="btn primary" style={{flex:1}} onClick={()=>onStatus(vendor,'go-live')}>Go live</button>
                 <button className="btn ghost" style={{flex:1}} onClick={()=>onStatus(vendor,'moving')}>On the move</button>
                 <button className="btn ghost" style={{flex:1}} onClick={()=>onStatus(vendor,'close')}>Close</button>
               </div>
-              <div style={{fontSize:12,color:'#9aa0a6',marginTop:8}}>Tap a menu item below to toggle “sold out”.</div>
+              <div style={{display:'flex',gap:8}}>
+                <button className="btn ghost" style={{flex:1}} onClick={()=>onEdit(vendor)}>✏️ Edit menu & details</button>
+                {mayDelete && <button className="btn ghost" style={{flex:1,color:'#e8451f'}}
+                  onClick={()=>{ if(confirm(`Remove "${vendor.name}"?`)) onDelete(vendor) }}>🗑 Remove</button>}
+              </div>
+              <div style={{fontSize:12,color:'#9aa0a6',marginTop:8}}>Tap a menu item to toggle “sold out”.</div>
             </div>
           )}
 
@@ -85,8 +90,8 @@ export default function VendorDetail({
               {items.length===0 && <div className="empty">No menu posted today yet.</div>}
               {items.map((it,i)=>(
                 <div key={i} className={'menu-item'+(it.soldOut?' out':'')}
-                     style={{cursor:vendorMode?'pointer':'default'}}
-                     onClick={()=> vendorMode && onToggleSoldOut(vendor, i)}>
+                     style={{cursor:mayEdit?'pointer':'default'}}
+                     onClick={()=> mayEdit && onToggleSoldOut(vendor, i)}>
                   <div>
                     {vendor.veg && <span className="veg-i" />}
                     <span className="nm">{it.name}</span>
@@ -96,24 +101,19 @@ export default function VendorDetail({
                   <div style={{fontWeight:700}}>{it.price!=null?`₹${it.price}`:''}</div>
                 </div>
               ))}
-              {vendorMode && <button className="btn ghost" style={{width:'100%',marginTop:10}}
-                 onClick={()=>onEdit(vendor)}>＋ Edit today's menu</button>}
             </div>
           )}
 
           {tab==='reviews' && (
             <div style={{marginTop:8}}>
-              {!showRev && <button className="btn primary" style={{width:'100%',marginBottom:8}}
-                 onClick={()=>setShowRev(true)}>✍️ Write a review</button>}
+              {!showRev && <button className="btn primary" style={{width:'100%',marginBottom:8}} onClick={()=>setShowRev(true)}>✍️ Write a review</button>}
               {showRev && (
                 <div style={{background:'#f7f8fa',borderRadius:14,padding:12,marginBottom:10}}>
                   <div style={{fontSize:24,letterSpacing:4,cursor:'pointer'}}>
-                    {[1,2,3,4,5].map(n=>(
-                      <span key={n} onClick={()=>setRating(n)} style={{color:n<=rating?'#f5a623':'#d8dadf'}}>★</span>
-                    ))}
+                    {[1,2,3,4,5].map(n=>(<span key={n} onClick={()=>setRating(n)} style={{color:n<=rating?'#f5a623':'#d8dadf'}}>★</span>))}
                   </div>
-                  <textarea value={cmt} onChange={e=>setCmt(e.target.value)} rows={3}
-                    placeholder="How was the food?" style={{width:'100%',marginTop:8,padding:10,borderRadius:10,border:'1px solid #e3e5ea',fontSize:14}} />
+                  <textarea value={cmt} onChange={e=>setCmt(e.target.value)} rows={3} placeholder="How was the food?"
+                    style={{width:'100%',marginTop:8,padding:10,borderRadius:10,border:'1px solid #e3e5ea',fontSize:14}} />
                   <div className="btnrow" style={{margin:'8px 0 0'}}>
                     <button className="btn ghost" onClick={()=>setShowRev(false)}>Cancel</button>
                     <button className="btn primary" onClick={submitReview}>Post review</button>

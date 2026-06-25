@@ -96,3 +96,54 @@ export function mergeFeed(feed) {
   })
   vendors = [...byId.values()]; emit()
 }
+
+// ---------------- Community posts (Instagram-style sightings) ----------------
+const PKEY = 'streeteats.posts.v1'
+function loadPosts() { try { return JSON.parse(localStorage.getItem(PKEY) || '[]') } catch { return [] } }
+function persistPosts(list) { try { localStorage.setItem(PKEY, JSON.stringify(list)) } catch {} }
+
+let posts = loadPosts()
+const psubs = new Set()
+function pemit() { persistPosts(posts); psubs.forEach(fn => fn([...posts])) }
+
+export function subscribePosts(fn) { psubs.add(fn); fn([...posts]); return () => psubs.delete(fn) }
+export function allPosts() { return [...posts] }
+
+/**
+ * A user posts a sighting: "found this cart, here's the menu + where it is".
+ * This is NOT an authoritative edit — it creates a community post AND a
+ * community-tracked vendor pin (unverified) that the real vendor can later claim.
+ */
+export async function addPost(p) {
+  const loc = p.loc || [12.9740, 77.6040]
+  const lat = p.lat ?? loc[0] + (Math.random()-.5)*0.01
+  const lng = p.lng ?? loc[1] + (Math.random()-.5)*0.01
+  const vendor = await addVendor({
+    name: p.name, cuisine: p.cuisine, veg: p.veg, address: p.address,
+    lat, lng, priceForTwo: p.priceForTwo || null,
+    menuItems: (p.menuLines || []).map(name => ({ name }))   // claimed menu (community)
+  })
+  const post = {
+    id: 'p-' + Math.random().toString(36).slice(2,9),
+    vendorId: vendor.id, author: p.author || 'You', caption: p.caption || '',
+    emoji: vendor.emoji, name: p.name, cuisine: p.cuisine, address: p.address,
+    menuLines: p.menuLines || [], lat, lng, createdAt: Date.now()
+  }
+  posts = [post, ...posts]; pemit()
+  return post
+}
+
+function km(a, b) {
+  const R=6371, d=Math.PI/180
+  const dLat=(b[0]-a[0])*d, dLng=(b[1]-a[1])*d
+  const s=Math.sin(dLat/2)**2+Math.cos(a[0]*d)*Math.cos(b[0]*d)*Math.sin(dLng/2)**2
+  return 2*R*Math.asin(Math.sqrt(s))
+}
+/** Recent posts near the user — these "pop up" in the feed. */
+export function postsNear(me, radiusKm = 3) {
+  if (!me) return [...posts]
+  return posts
+    .map(p => ({ ...p, distanceKm: km(me, [p.lat, p.lng]) }))
+    .filter(p => p.distanceKm <= radiusKm)
+    .sort((a,b) => b.createdAt - a.createdAt)
+}
