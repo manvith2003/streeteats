@@ -45,3 +45,10 @@ export async function fetchRating(vendorId) {
   if (!r.ok) return null;
   return r.json();
 }
+
+// Combined feed from search-geo-service: vendors enriched with status + rating + menu in one call.
+export async function fetchCombinedNearby(lat, lng, radiusKm = 3) {
+  const r = await fetch(`/api/search/nearby?lat=${lat}&lng=${lng}&radiusKm=${radiusKm}`);
+  if (!r.ok) throw new Error('combined nearby failed');
+  return r.json();
+}

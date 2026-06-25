@@ -1,0 +1,11 @@
+server:
+  port: 8085
+spring:
+  application:
+    name: search-geo-service
+
+services:
+  vendor: ${VENDOR_URL:http://localhost:8081}
+  status: ${STATUS_URL:http://localhost:8082}
+  menu:   ${MENU_URL:http://localhost:8083}
+  review: ${REVIEW_URL:http://localhost:8084}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { fetchNearby, fetchStatus, confirmHere, fetchTodayMenu, fetchRating } from './api.js'
+import { fetchNearby, fetchStatus, confirmHere, fetchTodayMenu, fetchRating, fetchCombinedNearby } from './api.js'
 
 // Default centre if geolocation is unavailable (Bengaluru).
 const DEFAULT_CENTER = [12.9716, 77.5946]
@@ -62,6 +62,21 @@ export default function App() {
   }, [])
 
   async function load() {
+    // Preferred: one combined call to search-geo-service.
+    try {
+      const list = await fetchCombinedNearby(center[0], center[1], 5)
+      setVendors(list.map(v => ({
+        ...v,
+        _state: v.state || 'UNKNOWN',
+        _mins: v.minutesSinceConfirmed,
+        _rating: (v.averageRating != null) ? { averageRating: v.averageRating, reviewCount: v.reviewCount } : null,
+        _menu: v.menuItems ? { items: v.menuItems } : null
+      })))
+      setUsingDemo(false)
+      return
+    } catch { /* fall through */ }
+
+    // Fallback: hit vendor-service directly and enrich per-vendor.
     try {
       const list = await fetchNearby(center[0], center[1], 5)
       const enriched = await Promise.all(list.map(async v => {
