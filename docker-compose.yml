@@ -1,5 +1,6 @@
+# StreetEats Live — full stack. Run: docker compose up --build
 services:
-  # --- PostgreSQL + PostGIS (geospatial "vendors near me") ---
+  # ---------------- Infrastructure ----------------
   postgres:
     image: postgis/postgis:16-3.4
     container_name: se-postgres
@@ -7,36 +8,125 @@ services:
       POSTGRES_USER: streeteats
       POSTGRES_PASSWORD: streeteats
       POSTGRES_DB: streeteats
-    ports:
-      - "5432:5432"
+    ports: ["5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streeteats"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
-  # --- Redis (hot live-status / freshness cache) ---
   redis:
     image: redis:7-alpine
     container_name: se-redis
-    ports:
-      - "6379:6379"
+    ports: ["6379:6379"]
 
-  # --- Kafka (event backbone, KRaft mode — no Zookeeper) ---
   kafka:
     image: bitnami/kafka:3.7
     container_name: se-kafka
     ports:
-      - "9092:9092"
+      - "9092:9092"    # internal (containers): kafka:9092
+      - "29092:29092"  # external (host):       localhost:29092
     environment:
       KAFKA_CFG_NODE_ID: "1"
       KAFKA_CFG_PROCESS_ROLES: "controller,broker"
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
-      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
-      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
+      KAFKA_CFG_LISTENERS: "INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:29092"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "INTERNAL://kafka:9092,EXTERNAL://localhost:29092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "INTERNAL"
       ALLOW_PLAINTEXT_LISTENER: "yes"
     volumes:
       - kafka-data:/bitnami/kafka
+
+  # ---------------- Domain services ----------------
+  vendor-service:
+    build: ./services/vendor-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/streeteats
+      KAFKA_BROKERS: kafka:9092
+    ports: ["8081:8081"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_started }
+
+  live-status-service:
+    build: ./services/live-status-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/streeteats
+      KAFKA_BROKERS: kafka:9092
+    ports: ["8082:8082"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_started }
+
+  menu-service:
+    build: ./services/menu-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/streeteats
+      KAFKA_BROKERS: kafka:9092
+    ports: ["8083:8083"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_started }
+
+  review-service:
+    build: ./services/review-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/streeteats
+    ports: ["8084:8084"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  search-geo-service:
+    build: ./services/search-geo-service
+    environment:
+      VENDOR_URL: http://vendor-service:8081
+      STATUS_URL: http://live-status-service:8082
+      MENU_URL: http://menu-service:8083
+      REVIEW_URL: http://review-service:8084
+    ports: ["8085:8085"]
+    depends_on: [vendor-service, live-status-service, menu-service, review-service]
+
+  recommendation-service:
+    build: ./services/recommendation-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/streeteats
+      SEARCH_URL: http://search-geo-service:8085
+      KAFKA_BROKERS: kafka:9092
+      STREETEATS_KAFKA_CONSUMER: "true"
+    ports: ["8086:8086"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_started }
+
+  notification-service:
+    build: ./services/notification-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/streeteats
+      KAFKA_BROKERS: kafka:9092
+      STREETEATS_KAFKA_CONSUMER: "true"
+    ports: ["8087:8087"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_started }
+
+  # ---------------- Gateway ----------------
+  api-gateway:
+    build: ./services/api-gateway
+    environment:
+      VENDOR_URL: http://vendor-service:8081
+      STATUS_URL: http://live-status-service:8082
+      MENU_URL: http://menu-service:8083
+      REVIEW_URL: http://review-service:8084
+      SEARCH_URL: http://search-geo-service:8085
+      RECO_URL: http://recommendation-service:8086
+      NOTIFY_URL: http://notification-service:8087
+    ports: ["8080:8080"]
+    depends_on: [vendor-service, live-status-service, menu-service, review-service, search-geo-service, recommendation-service, notification-service]
 
 volumes:
   pgdata:

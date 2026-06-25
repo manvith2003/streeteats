@@ -3,6 +3,16 @@ server:
 spring:
   application:
     name: recommendation-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: recommendation-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.streeteats.reco.dto.EventRequest
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/streeteats}
     username: ${DB_USER:streeteats}

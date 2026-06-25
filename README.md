@@ -45,10 +45,20 @@ streeteats-live/
 └── docker-compose.yml   # Local dev infra (Kafka, Postgres+PostGIS, Redis)
 ```
 
-## Getting started (local infra)
+## Getting started (full stack)
 ```bash
-docker compose up -d        # starts Kafka, Postgres+PostGIS, Redis
+docker compose up --build -d     # builds & starts all 8 services + Postgres/PostGIS, Redis, Kafka
+make seed                        # seed a demo vendor (status + menu + review) via the gateway
+make fe                          # run the React map at http://localhost:5173
 ```
+All API traffic goes through the **api-gateway** at `http://localhost:8080`.
+
+| Service | Port |
+|---------|------|
+| api-gateway | 8080 |
+| vendor / live-status / menu / review | 8081 / 8082 / 8083 / 8084 |
+| search-geo · recommendation · notification | 8085 · 8086 · 8087 |
+| web-app (vite) | 5173 |
 
 ## Roadmap
 - **Phase 0 — Validate:** hand-map 30–50 vendors in one area.
