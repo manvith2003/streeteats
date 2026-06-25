@@ -2,11 +2,24 @@ import { useState } from 'react'
 import { bg } from '../data.js'
 import { STATUS, Stars } from './Common.jsx'
 
-export default function VendorDetail({ vendor, idx, following, onClose, onDirections, onToggleFollow, onConfirm }) {
+export default function VendorDetail({
+  vendor, idx, following, onClose, onDirections, onToggleFollow,
+  onConfirm, onReview, onEdit, onDelete, onStatus, onToggleSoldOut
+}) {
   const [tab, setTab] = useState('menu')
+  const [showRev, setShowRev] = useState(false)
+  const [rating, setRating] = useState(5)
+  const [cmt, setCmt] = useState('')
+  const [vendorMode, setVendorMode] = useState(false)
   const s = STATUS[vendor.state] || STATUS.UNKNOWN
   const items = vendor.menuItems || []
   const reviews = vendor.reviews || []
+
+  const submitReview = () => {
+    if (!cmt.trim()) { alert('Add a short comment'); return }
+    onReview(vendor, { rating, cmt: cmt.trim() })
+    setCmt(''); setRating(5); setShowRev(false); setTab('reviews')
+  }
 
   return (
     <div className="sheet-bg" onClick={onClose}>
@@ -42,6 +55,26 @@ export default function VendorDetail({ vendor, idx, following, onClose, onDirect
               onClick={()=>onToggleFollow(vendor)}>{following?'♥':'♡'}</button>
           </div>
 
+          <div style={{display:'flex',gap:10,marginBottom:6}}>
+            <button className="btn ghost" style={{flex:1}} onClick={()=>onEdit(vendor)}>✏️ Edit</button>
+            <button className="btn ghost" style={{flex:1,color:'#e8451f'}}
+              onClick={()=>{ if(confirm(`Remove "${vendor.name}"?`)) onDelete(vendor) }}>🗑 Remove</button>
+            <button className={'btn '+(vendorMode?'follow':'ghost')} style={{flex:1}}
+              onClick={()=>setVendorMode(m=>!m)}>🛵 Vendor</button>
+          </div>
+
+          {vendorMode && (
+            <div style={{background:'#fff7f2',border:'1px solid #ffe0cf',borderRadius:14,padding:12,marginBottom:8}}>
+              <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Vendor controls</div>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                <button className="btn primary" style={{flex:1}} onClick={()=>onStatus(vendor,'go-live')}>Go live</button>
+                <button className="btn ghost" style={{flex:1}} onClick={()=>onStatus(vendor,'moving')}>On the move</button>
+                <button className="btn ghost" style={{flex:1}} onClick={()=>onStatus(vendor,'close')}>Close</button>
+              </div>
+              <div style={{fontSize:12,color:'#9aa0a6',marginTop:8}}>Tap a menu item below to toggle “sold out”.</div>
+            </div>
+          )}
+
           <div className="toggle" style={{width:'fit-content'}}>
             <button className={tab==='menu'?'on':''} onClick={()=>setTab('menu')}>Today's Menu</button>
             <button className={tab==='reviews'?'on':''} onClick={()=>setTab('reviews')}>Reviews ({reviews.length})</button>
@@ -51,7 +84,9 @@ export default function VendorDetail({ vendor, idx, following, onClose, onDirect
             <div style={{marginTop:8}}>
               {items.length===0 && <div className="empty">No menu posted today yet.</div>}
               {items.map((it,i)=>(
-                <div key={i} className={'menu-item'+(it.soldOut?' out':'')}>
+                <div key={i} className={'menu-item'+(it.soldOut?' out':'')}
+                     style={{cursor:vendorMode?'pointer':'default'}}
+                     onClick={()=> vendorMode && onToggleSoldOut(vendor, i)}>
                   <div>
                     {vendor.veg && <span className="veg-i" />}
                     <span className="nm">{it.name}</span>
@@ -61,15 +96,31 @@ export default function VendorDetail({ vendor, idx, following, onClose, onDirect
                   <div style={{fontWeight:700}}>{it.price!=null?`₹${it.price}`:''}</div>
                 </div>
               ))}
+              {vendorMode && <button className="btn ghost" style={{width:'100%',marginTop:10}}
+                 onClick={()=>onEdit(vendor)}>＋ Edit today's menu</button>}
             </div>
           )}
 
           {tab==='reviews' && (
             <div style={{marginTop:8}}>
-              <div style={{display:'flex',gap:8,marginBottom:6}}>
-                <button className="btn ghost" style={{flex:1}} onClick={()=>onConfirm(vendor)}>“Is it open?” · ask nearby</button>
-              </div>
-              {reviews.length===0 && <div className="empty">No reviews yet. Be the first!</div>}
+              {!showRev && <button className="btn primary" style={{width:'100%',marginBottom:8}}
+                 onClick={()=>setShowRev(true)}>✍️ Write a review</button>}
+              {showRev && (
+                <div style={{background:'#f7f8fa',borderRadius:14,padding:12,marginBottom:10}}>
+                  <div style={{fontSize:24,letterSpacing:4,cursor:'pointer'}}>
+                    {[1,2,3,4,5].map(n=>(
+                      <span key={n} onClick={()=>setRating(n)} style={{color:n<=rating?'#f5a623':'#d8dadf'}}>★</span>
+                    ))}
+                  </div>
+                  <textarea value={cmt} onChange={e=>setCmt(e.target.value)} rows={3}
+                    placeholder="How was the food?" style={{width:'100%',marginTop:8,padding:10,borderRadius:10,border:'1px solid #e3e5ea',fontSize:14}} />
+                  <div className="btnrow" style={{margin:'8px 0 0'}}>
+                    <button className="btn ghost" onClick={()=>setShowRev(false)}>Cancel</button>
+                    <button className="btn primary" onClick={submitReview}>Post review</button>
+                  </div>
+                </div>
+              )}
+              {reviews.length===0 && !showRev && <div className="empty">No reviews yet. Be the first!</div>}
               {reviews.map((r,i)=>(
                 <div key={i} className="review">
                   <div className="who"><span>{r.who}</span><span><Stars v={r.rating}/></span></div>

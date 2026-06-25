@@ -65,6 +65,29 @@ public class VendorController {
         return repo.findNearby(lat, lng, radiusKm);
     }
 
+    /** Update an existing vendor's details. */
+    @PutMapping("/{id}")
+    public Vendor update(@PathVariable UUID id, @RequestBody CreateVendorRequest req) {
+        Vendor v = get(id);
+        if (req.getName() != null) v.setName(req.getName());
+        if (req.getCuisine() != null) v.setCuisine(req.getCuisine());
+        if (req.getDescription() != null) v.setDescription(req.getDescription());
+        if (req.getPhotoUrl() != null) v.setPhotoUrl(req.getPhotoUrl());
+        if (req.getAddress() != null) v.setAddress(req.getAddress());
+        if (req.getLat() != null) v.setLat(req.getLat());
+        if (req.getLng() != null) v.setLng(req.getLng());
+        v.setUpdatedAt(Instant.now());
+        return repo.save(v);
+    }
+
+    /** Remove a vendor listing. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        if (!repo.existsById(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Vendor not found");
+        repo.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
     /** A vendor claims a community-added listing (e.g. once they get a smartphone). */
     @PostMapping("/{id}/claim")
     public Vendor claim(@PathVariable UUID id) {

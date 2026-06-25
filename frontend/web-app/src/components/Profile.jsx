@@ -1,4 +1,12 @@
-export default function Profile({ following=[] }) {
+export default function Profile({ following=[], onAdd }) {
+  const rows = [
+    ['❤️','Following', `${following.length} vendors`, null],
+    ['🛵','Add / list a vendor','Add a cart, go live', onAdd],
+    ['📍','Saved addresses','MG Road, Home, Work', null],
+    ['🧾','Order & visit history','—', null],
+    ['⚙️','Settings','Notifications, language', null],
+    ['↪️','Log out','', null],
+  ]
   return (
     <div>
       <div className="topbar">
@@ -12,15 +20,8 @@ export default function Profile({ following=[] }) {
         </div>
       </div>
       <div className="cards" style={{marginTop:14}}>
-        {[
-          ['❤️','Following', `${following.length} vendors`],
-          ['📍','Saved addresses','MG Road, Home, Work'],
-          ['🧾','Order & visit history','—'],
-          ['🛵','Become a vendor','List your cart, go live'],
-          ['⚙️','Settings','Notifications, language'],
-          ['↪️','Log out',''],
-        ].map((r,i)=>(
-          <div key={i} className="vcard" style={{cursor:'pointer'}}>
+        {rows.map((r,i)=>(
+          <div key={i} className="vcard" style={{cursor:'pointer'}} onClick={r[3]||undefined}>
             <div className="body" style={{display:'flex',gap:12,alignItems:'center'}}>
               <span style={{fontSize:22}}>{r[0]}</span>
               <div style={{flex:1}}>
