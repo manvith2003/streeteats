@@ -33,3 +33,15 @@ export async function addVendor(payload) {
   });
   return r.json();
 }
+
+export async function fetchTodayMenu(vendorId) {
+  const r = await fetch(`/api/menu/${vendorId}/today`);
+  if (!r.ok) return null;            // 404 = no menu posted today
+  return r.json();
+}
+
+export async function fetchRating(vendorId) {
+  const r = await fetch(`/api/reviews/${vendorId}/summary`);
+  if (!r.ok) return null;
+  return r.json();
+}

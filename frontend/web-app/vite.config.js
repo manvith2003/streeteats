@@ -6,9 +6,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // dev proxy to the Spring Boot services
       '/api/vendors': 'http://localhost:8081',
-      '/api/status': 'http://localhost:8082'
+      '/api/status': 'http://localhost:8082',
+      '/api/menu': 'http://localhost:8083',
+      '/api/reviews': 'http://localhost:8084'
     }
   }
 })
