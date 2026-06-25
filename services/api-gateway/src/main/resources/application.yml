@@ -33,3 +33,6 @@ spring:
         - id: recommendation
           uri: ${RECO_URL:http://localhost:8086}
           predicates: [ Path=/api/recommendations/** ]
+        - id: notification
+          uri: ${NOTIFY_URL:http://localhost:8087}
+          predicates: [ Path=/api/notifications/** ]

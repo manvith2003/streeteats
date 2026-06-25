@@ -1,0 +1,33 @@
+server:
+  port: 8087
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/streeteats}
+    username: ${DB_USER:streeteats}
+    password: ${DB_PASSWORD:streeteats}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+fcm:
+  enabled: false   # set true + add firebase-admin credentials for real push
+
+streeteats:
+  kafka-consumer: false
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:mem:notify;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
